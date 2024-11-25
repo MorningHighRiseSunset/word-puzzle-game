@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useReducer } from 'react';
 import { usePlayer } from './PlayerContext';
-import socketService from '../services/socketService';
 
 const GameContext = createContext(null);
 
@@ -16,13 +15,30 @@ const initialState = {
     error: null
 };
 
+function gameReducer(state = initialState, action) {
+    switch (action.type) {
+        case 'UPDATE_GAME':
+            return { ...state, ...action.payload };
+        case 'SELECT_TILE':
+            return { ...state, selectedTile: action.payload };
+        case 'SET_ERROR':
+            return { ...state, error: action.payload };
+        case 'RESET_GAME':
+            return initialState;
+        default:
+            return state;
+    }
+}
+
 export const GameProvider = ({ children }) => {
     const [state, dispatch] = useReducer(gameReducer, initialState);
     const { playerName } = usePlayer();
 
     const value = {
         ...state,
-        dispatch
+        selectedTile: state.selectedTile,
+        dispatch,
+        playerName
     };
 
     return (
@@ -39,18 +55,3 @@ export const useGame = () => {
     }
     return context;
 };
-
-function gameReducer(state, action) {
-    switch (action.type) {
-        case 'UPDATE_GAME':
-            return { ...state, ...action.payload };
-        case 'SET_ERROR':
-            return { ...state, error: action.payload };
-        case 'RESET_GAME':
-            return initialState;
-        default:
-            return state;
-    }
-}
-
-export default GameContext;

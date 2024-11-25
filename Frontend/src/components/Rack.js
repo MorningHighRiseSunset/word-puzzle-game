@@ -37,13 +37,13 @@ const EmptySlot = styled.div`
     background: rgba(255,255,255,0.1);
 `;
 
-const Rack = ({ tiles, isPlayerTurn }) => {
-    const { state, dispatch } = useGame();
-    const { selectedTile } = state;
-
+const Rack = ({ tiles = [], isPlayerTurn }) => {
+    const gameContext = useGame();
+    const selectedTile = gameContext?.selectedTile || null;
+    
     const handleTileClick = (letter) => {
-        if (isPlayerTurn) {
-            dispatch({ 
+        if (isPlayerTurn && gameContext?.dispatch) {
+            gameContext.dispatch({ 
                 type: 'SELECT_TILE', 
                 payload: selectedTile === letter ? null : letter 
             });
@@ -52,7 +52,7 @@ const Rack = ({ tiles, isPlayerTurn }) => {
 
     return (
         <RackContainer>
-            {tiles.map((letter, index) => (
+            {(tiles || []).map((letter, index) => (
                 letter ? (
                     <Tile
                         key={index}
