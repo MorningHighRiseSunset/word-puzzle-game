@@ -65,9 +65,16 @@ const PlayerCard = styled.div`
     }
 `;
 
+const StatusMessage = styled.div`
+    text-align: center;
+    margin: 20px 0;
+    padding: 10px;
+    background: #f5f5f5;
+    border-radius: 4px;
+`;
+
 const GameRoom = () => {
     const { playerName } = usePlayer();
-    const gameContext = useGame();
     const [availableGames, setAvailableGames] = useState([]);
     const [currentGame, setCurrentGame] = useState(null);
     const [error, setError] = useState(null);
@@ -76,47 +83,51 @@ const GameRoom = () => {
         const socket = socketService.connect();
 
         socket.on('gamesList', (games) => {
-            setAvailableGames(games);
+            setAvailableGames(games || []);
         });
 
         socket.on('gameUpdate', (gameState) => {
             setCurrentGame(gameState);
-            if (gameContext?.dispatch) {
-                gameContext.dispatch({ type: 'UPDATE_GAME', payload: gameState });
-            }
+            setError(null);
         });
 
         socket.on('gameError', (errorMessage) => {
             setError(errorMessage);
-            if (gameContext?.dispatch) {
-                gameContext.dispatch({ type: 'SET_ERROR', payload: errorMessage });
-            }
         });
 
+        // Request initial games list
         socketService.getGames();
 
-        return () => socketService.disconnect();
-    }, [gameContext]);
+        return () => socket.disconnect();
+    }, []);
 
     const createGame = () => {
-        socketService.createGame(playerName);
+        try {
+            socketService.createGame({ playerName });
+        } catch (err) {
+            setError('Failed to create game. Please try again.');
+        }
     };
 
     const joinGame = (gameId) => {
-        socketService.joinGame(gameId, playerName);
+        try {
+            socketService.joinGame({ gameId, playerName });
+        } catch (err) {
+            setError('Failed to join game. Please try again.');
+        }
     };
 
     const handlePlaceTile = (row, col, letter) => {
-        if (currentGame?.currentTurn !== playerName) {
+        if (!currentGame || currentGame.currentTurn !== playerName) {
             setError("It's not your turn!");
             return;
         }
-        socketService.placeTile(currentGame.id, playerName, { row, col }, letter);
+        socketService.placeTile(currentGame.id, { row, col }, letter);
     };
 
     const handleEndTurn = () => {
         if (currentGame?.currentTurn === playerName) {
-            socketService.endTurn(currentGame.id, playerName);
+            socketService.endTurn(currentGame.id);
         }
     };
 
@@ -127,23 +138,26 @@ const GameRoom = () => {
                 <h2>Game Lobby</h2>
                 <Button onClick={createGame}>Create New Game</Button>
                 
+                {error && <StatusMessage style={{ color: 'red' }}>{error}</StatusMessage>}
+                
                 <GamesList>
-                    {availableGames.map(game => (
-                        <GameItem key={game.id}>
-                            <div>
-                                <div>Host: {game.players[0]}</div>
-                                <div>Players: {game.players.length}/4</div>
-                            </div>
-                            <Button
-                                onClick={() => joinGame(game.id)}
-                                disabled={game.players.length >= 4}
-                            >
-                                Join Game
-                            </Button>
-                        </GameItem>
-                    ))}
-                    {availableGames.length === 0 && (
-                        <div>No games available. Create one!</div>
+                    {Array.isArray(availableGames) && availableGames.length > 0 ? (
+                        availableGames.map(game => (
+                            <GameItem key={game.id || Math.random()}>
+                                <div>
+                                    <div>Host: {game.hostName || 'Unknown'}</div>
+                                    <div>Players: {game.playerCount || 1}/4</div>
+                                </div>
+                                <Button
+                                    onClick={() => joinGame(game.id)}
+                                    disabled={game.playerCount >= 4}
+                                >
+                                    Join Game
+                                </Button>
+                            </GameItem>
+                        ))
+                    ) : (
+                        <StatusMessage>No games available. Create one!</StatusMessage>
                     )}
                 </GamesList>
             </GameContainer>
@@ -152,28 +166,27 @@ const GameRoom = () => {
 
     // Show game board if in a game
     const isPlayerTurn = currentGame.currentTurn === playerName;
+    const players = currentGame.players || [];
 
     return (
         <GameContainer>
             <h2>Game Room</h2>
-            {error && (
-                <div style={{ color: 'red', marginBottom: '10px' }}>{error}</div>
-            )}
+            {error && <StatusMessage style={{ color: 'red' }}>{error}</StatusMessage>}
 
             <PlayersList>
-                {currentGame.players.map((player) => (
+                {players.map((player) => (
                     <PlayerCard 
-                        key={player.name}
+                        key={player.id || player.name}
                         isCurrentTurn={player.name === currentGame.currentTurn}
                     >
                         <h3>{player.name}</h3>
-                        <div>Score: {player.score}</div>
+                        <div>Score: {player.score || 0}</div>
                     </PlayerCard>
                 ))}
             </PlayersList>
 
             <Board 
-                board={currentGame.board}
+                board={currentGame.board || Array(15).fill().map(() => Array(15).fill(null))}
                 onPlaceTile={handlePlaceTile}
                 isPlayerTurn={isPlayerTurn}
             />
@@ -185,7 +198,7 @@ const GameRoom = () => {
             />
             
             <Rack 
-                tiles={currentGame.players.find(p => p.name === playerName)?.rack || []}
+                tiles={players.find(p => p.name === playerName)?.rack || []}
                 isPlayerTurn={isPlayerTurn}
             />
         </GameContainer>
