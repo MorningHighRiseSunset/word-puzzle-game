@@ -30,25 +30,21 @@ const Cell = styled.div`
     }
 `;
 
-const Board = () => {
-    const { board, gameStatus, selectedTile, placeTile } = useGame();
+const Board = ({ onPlaceTile, isPlayerTurn }) => {
+    const { state } = useGame();
+    const { board } = state || { board: Array(15).fill().map(() => Array(15).fill(null)) };
 
     const getSpecialCell = (row, col) => {
-        // Define special cells (triple word, double word, etc.)
         if ((row === 0 || row === 14) && (col === 0 || col === 7 || col === 14)) 
-            return '#ff6b6b'; // Triple Word
+            return '#ff6b6b';
         if (row === col || row === 14 - col) 
-            return '#ffd93d'; // Double Word
-        if ((row === 3 || row === 11) && (col === 0 || col === 7 || col === 14))
-            return '#87ceeb'; // Triple Letter
-        if ((row === 2 || row === 12) && (col === 6 || col === 8))
-            return '#98fb98'; // Double Letter
+            return '#ffd93d';
         return '#fff';
     };
 
     const handleCellClick = (row, col) => {
-        if (gameStatus === 'active' && selectedTile && !board[row][col]) {
-            placeTile(row, col, selectedTile);
+        if (isPlayerTurn && !board[row][col]) {
+            onPlaceTile(row, col);
         }
     };
 
@@ -59,7 +55,7 @@ const Board = () => {
                     <Cell
                         key={`${rowIndex}-${colIndex}`}
                         special={getSpecialCell(rowIndex, colIndex)}
-                        isActive={gameStatus === 'active' && !cell && selectedTile}
+                        isActive={isPlayerTurn && !cell}
                         onClick={() => handleCellClick(rowIndex, colIndex)}
                     >
                         {cell}

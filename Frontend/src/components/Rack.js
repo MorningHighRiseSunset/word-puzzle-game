@@ -9,7 +9,6 @@ const RackContainer = styled.div`
     background: #8b4513;
     border-radius: 8px;
     margin-top: 20px;
-    min-height: 50px;
 `;
 
 const Tile = styled.div`
@@ -24,11 +23,9 @@ const Tile = styled.div`
     font-weight: bold;
     cursor: pointer;
     user-select: none;
-    transition: all 0.2s ease;
 
     &:hover {
         transform: ${props => !props.isSelected && 'translateY(-5px)'};
-        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     }
 `;
 
@@ -40,25 +37,27 @@ const EmptySlot = styled.div`
     background: rgba(255,255,255,0.1);
 `;
 
-const Rack = () => {
-    const { rack, selectedTile, dispatch, ACTIONS } = useGame();
+const Rack = ({ tiles, isPlayerTurn }) => {
+    const { state, dispatch } = useGame();
+    const { selectedTile } = state;
 
-    const handleTileClick = (letter, index) => {
-        if (selectedTile === letter) {
-            dispatch({ type: ACTIONS.SELECT_TILE, payload: null });
-        } else {
-            dispatch({ type: ACTIONS.SELECT_TILE, payload: letter });
+    const handleTileClick = (letter) => {
+        if (isPlayerTurn) {
+            dispatch({ 
+                type: 'SELECT_TILE', 
+                payload: selectedTile === letter ? null : letter 
+            });
         }
     };
 
     return (
         <RackContainer>
-            {rack.map((letter, index) => (
+            {tiles.map((letter, index) => (
                 letter ? (
                     <Tile
                         key={index}
                         isSelected={selectedTile === letter}
-                        onClick={() => handleTileClick(letter, index)}
+                        onClick={() => handleTileClick(letter)}
                     >
                         {letter}
                     </Tile>
