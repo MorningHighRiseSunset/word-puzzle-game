@@ -1,16 +1,12 @@
 {
-  "name": "word-puzzle-game",
-  "version": "1.0.0",
-  "private": true,
-  "engines": {
-    "node": ">=14.0.0"
-  },
-  "scripts": {
-    "frontend-install": "cd Frontend && npm install",
-    "backend-install": "cd Backend && npm install",
-    "frontend-build": "cd Frontend && npm run build",
-    "backend-start": "cd Backend && npm start",
-    "build": "npm run frontend-install && npm run backend-install && npm run frontend-build",
-    "start": "npm run backend-start"
+    "name": "word-puzzle-game",
+    "version": "1.0.0",
+    "private": true,
+    "scripts": {
+      "frontend-install": "cd Frontend && npm install",
+      "backend-install": "cd Backend && npm install",
+      "frontend-build": "cd Frontend && npm run build",
+      "backend-start": "cd Backend && npm start"
+    }
   }
-}
+  
