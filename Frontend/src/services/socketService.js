@@ -4,8 +4,7 @@ class SocketService {
     constructor() {
         this.socket = null;
         this.gameId = null;
-        // Use the Render backend URL
-        this.API_URL = process.env.REACT_APP_BACKEND_URL || 'https://word-puzzle-backend.onrender.com';
+        this.API_URL = 'https://word-puzzle-backend.onrender.com';
     }
 
     connect() {
@@ -18,7 +17,7 @@ class SocketService {
             });
 
             this.socket.on('connect', () => {
-                console.log('Connected to game server:', this.API_URL);
+                console.log('Connected to game server');
             });
 
             this.socket.on('connect_error', (error) => {
@@ -26,6 +25,41 @@ class SocketService {
             });
         }
         return this.socket;
+    }
+
+    emit(eventName, data) {
+        if (this.socket) {
+            this.socket.emit(eventName, data);
+        } else {
+            console.error('Socket not connected');
+        }
+    }
+
+    disconnect() {
+        if (this.socket) {
+            this.socket.disconnect();
+            this.socket = null;
+        }
+    }
+
+    createGame(playerName) {
+        this.emit('createGame', { playerName });
+    }
+
+    joinGame(gameId, playerName) {
+        this.emit('joinGame', { gameId, playerName });
+    }
+
+    placeTile(gameId, playerName, position, letter) {
+        this.emit('placeTile', { gameId, playerName, position, letter });
+    }
+
+    endTurn(gameId, playerName) {
+        this.emit('endTurn', { gameId, playerName });
+    }
+
+    getGames() {
+        this.emit('getGames');
     }
 }
 

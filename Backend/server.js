@@ -12,7 +12,7 @@ const server = http.createServer(app);
 
 // Middleware
 app.use(cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: "https://word-puzzle-frontend.onrender.com",
     methods: ["GET", "POST"],
     credentials: true
 }));
