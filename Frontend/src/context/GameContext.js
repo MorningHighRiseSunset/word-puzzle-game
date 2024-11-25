@@ -1,10 +1,10 @@
-import React, { createContext, useState, useCallback } from 'react';
+import React, { createContext, useState, useCallback, useContext } from 'react';
 
 export const GameContext = createContext();
 
 const initialGameState = {
   gameId: null,
-  board: Array(15).fill(Array(15).fill(null)), // Initialize empty 15x15 board
+  board: Array(15).fill(Array(15).fill(null)),
   players: [],
   currentPlayer: null,
   status: 'waiting',
@@ -13,6 +13,15 @@ const initialGameState = {
   letters: [],
   isGameOver: false,
   errorMessage: null,
+};
+
+// Custom hook to use the game context
+export const useGame = () => {
+  const context = useContext(GameContext);
+  if (!context) {
+    throw new Error('useGame must be used within a GameProvider');
+  }
+  return context;
 };
 
 export const GameProvider = ({ children }) => {

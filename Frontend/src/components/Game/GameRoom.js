@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { GameContext } from '../../context/GameContext';
+import { useGame } from '../../context/GameContext';
 import { PlayerContext } from '../../context/PlayerContext';
 import Board from '../Board';
 import Rack from '../Rack';
@@ -7,7 +7,7 @@ import GameControls from '../GameControls';
 import useSocket from '../../hooks/useSocket';
 
 const GameRoom = () => {
-  const { gameState, updateGameState } = useContext(GameContext);
+  const { gameState, updateGameState } = useGame();
   const { playerState } = useContext(PlayerContext);
   const socket = useSocket();
   const [selectedTile, setSelectedTile] = useState(null);
@@ -54,7 +54,6 @@ const GameRoom = () => {
     });
   };
 
-  // Safely access players with null checks
   const currentPlayerTiles = gameState?.players?.find(
     player => player.playerId === playerState?.playerId
   )?.tiles || [];
