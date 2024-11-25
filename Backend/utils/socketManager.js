@@ -10,7 +10,7 @@ class SocketManager {
             }
         });
         
-        this.connectedPlayers = new Map(); // Store player info
+        this.players = new Map(); // Store player info
         this.initialize();
     }
 
@@ -19,38 +19,53 @@ class SocketManager {
             console.log('Client connected:', socket.id);
 
             socket.on('playerJoined', ({ playerName }) => {
-                // Add player to connected players
-                this.connectedPlayers.set(playerName, {
+                // Store player info
+                this.players.set(playerName, {
                     socketId: socket.id,
                     online: true
                 });
 
                 // Broadcast updated player list
                 this.broadcastPlayersList();
-
-                // Announce new player
-                this.io.emit('gameMessage', `${playerName} has joined!`);
+                
+                // Broadcast join action
+                this.io.emit('playerAction', {
+                    player: playerName,
+                    action: 'joined the room 🎉'
+                });
             });
 
-            socket.on('sendPing', ({ from, message }) => {
-                this.io.emit('pingReceived', { from, message });
+            socket.on('playerAction', ({ player, action, buttonId }) => {
+                // Broadcast the action to all clients
+                this.io.emit('playerAction', {
+                    player,
+                    action,
+                    buttonId
+                });
             });
 
             socket.on('playerLeft', ({ playerName }) => {
-                this.connectedPlayers.delete(playerName);
+                this.players.delete(playerName);
                 this.broadcastPlayersList();
-                this.io.emit('gameMessage', `${playerName} has left.`);
+                this.io.emit('playerAction', {
+                    player: playerName,
+                    action: 'left the room 👋'
+                });
             });
 
             socket.on('disconnect', () => {
                 // Find and mark disconnected player
-                for (const [playerName, data] of this.connectedPlayers.entries()) {
+                for (const [playerName, data] of this.players.entries()) {
                     if (data.socketId === socket.id) {
-                        this.connectedPlayers.set(playerName, {
+                        this.players.set(playerName, {
                             ...data,
                             online: false
                         });
                         this.broadcastPlayersList();
+                        this.io.emit('playerAction', {
+                            player: playerName,
+                            action: 'went offline 🔴'
+                        });
                         break;
                     }
                 }
@@ -61,7 +76,7 @@ class SocketManager {
 
     broadcastPlayersList() {
         const playersList = {};
-        this.connectedPlayers.forEach((data, playerName) => {
+        this.players.forEach((data, playerName) => {
             playersList[playerName] = {
                 online: data.online
             };
