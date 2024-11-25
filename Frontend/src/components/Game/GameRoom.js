@@ -1,109 +1,131 @@
 import React, { useEffect, useState } from 'react';
-import { useGame } from '../../context/GameContext';
+import styled from 'styled-components';
 import { usePlayer } from '../../context/PlayerContext';
-import Board from '../Board';
-import Rack from '../Rack';
-import GameControls from '../GameControls';
-import useSocket from '../../hooks/useSocket';
+import socketService from '../../services/socketService';
+
+const Container = styled.div`
+    padding: 20px;
+    max-width: 600px;
+    margin: 0 auto;
+    text-align: center;
+`;
+
+const PlayerList = styled.div`
+    margin: 20px 0;
+    padding: 15px;
+    background: #f5f5f5;
+    border-radius: 8px;
+`;
+
+const PlayerCard = styled.div`
+    margin: 10px;
+    padding: 10px;
+    background: ${props => props.isOnline ? '#e8f5e9' : '#ffebee'};
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+`;
+
+const Button = styled.button`
+    padding: 10px 20px;
+    margin: 5px;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+`;
+
+const Message = styled.div`
+    padding: 10px;
+    margin: 10px 0;
+    background: #e3f2fd;
+    border-radius: 4px;
+`;
 
 const GameRoom = () => {
-  const { gameState, updateGameState } = useGame();
-  const { playerState } = usePlayer();
-  const socket = useSocket();
-  const [selectedTile, setSelectedTile] = useState(null);
-  const [playedTiles, setPlayedTiles] = useState([]);
+    const { playerName } = usePlayer();
+    const [connectedPlayers, setConnectedPlayers] = useState({});
+    const [lastPing, setLastPing] = useState({});
+    const [gameMessage, setGameMessage] = useState('');
 
-  useEffect(() => {
-    if (!socket) return;
+    useEffect(() => {
+        const socket = socketService.connect();
 
-    socket.on('gameUpdate', (updatedGame) => {
-      updateGameState(updatedGame);
-    });
+        // When joining, announce yourself
+        socket.emit('playerJoined', { playerName });
 
-    return () => {
-      socket.off('gameUpdate');
+        // Listen for other players
+        socket.on('playersList', (players) => {
+            setConnectedPlayers(players);
+        });
+
+        // Listen for pings from other players
+        socket.on('pingReceived', ({ from, message }) => {
+            setLastPing(prev => ({
+                ...prev,
+                [from]: message
+            }));
+            // Clear ping message after 3 seconds
+            setTimeout(() => {
+                setLastPing(prev => ({
+                    ...prev,
+                    [from]: ''
+                }));
+            }, 3000);
+        });
+
+        // Listen for game messages
+        socket.on('gameMessage', (message) => {
+            setGameMessage(message);
+            setTimeout(() => setGameMessage(''), 3000);
+        });
+
+        return () => {
+            socket.emit('playerLeft', { playerName });
+            socket.disconnect();
+        };
+    }, [playerName]);
+
+    const sendPing = () => {
+        socketService.emit('sendPing', {
+            from: playerName,
+            message: `👋 Ping from ${playerName}!`
+        });
     };
-  }, [socket, updateGameState]);
 
-  const handleTileSelect = (tile) => {
-    setSelectedTile(tile);
-  };
+    return (
+        <Container>
+            <h2>Multiplayer Test Room</h2>
+            
+            {gameMessage && (
+                <Message>{gameMessage}</Message>
+            )}
 
-  const handleBoardClick = (position) => {
-    if (!selectedTile) return;
-    
-    setPlayedTiles(prev => [...prev, { ...selectedTile, position }]);
-    setSelectedTile(null);
-  };
+            <PlayerList>
+                <h3>Connected Players:</h3>
+                {Object.entries(connectedPlayers).map(([name, status]) => (
+                    <PlayerCard key={name} isOnline={status.online}>
+                        <span>{name} {status.online ? '🟢' : '⚫'}</span>
+                        {lastPing[name] && (
+                            <span>{lastPing[name]}</span>
+                        )}
+                        {name !== playerName && status.online && (
+                            <Button onClick={sendPing}>
+                                Ping {name}
+                            </Button>
+                        )}
+                    </PlayerCard>
+                ))}
+            </PlayerList>
 
-  const handlePlayMove = () => {
-    if (!playedTiles.length) return;
-
-    socket.emit('playMove', {
-      gameId: gameState?.gameId,
-      playerId: playerState?.playerId,
-      tiles: playedTiles
-    });
-    setPlayedTiles([]);
-  };
-
-  const handlePass = () => {
-    socket.emit('passTurn', {
-      gameId: gameState?.gameId,
-      playerId: playerState?.playerId
-    });
-  };
-
-  const currentPlayerTiles = gameState?.players?.find(
-    player => player.playerId === playerState?.playerId
-  )?.tiles || [];
-
-  const scores = gameState?.players?.map(player => ({
-    playerId: player.playerId,
-    score: player.score,
-    isCurrentPlayer: player.playerId === gameState.currentPlayer
-  })) || [];
-
-  if (!gameState) {
-    return <div>Loading game...</div>;
-  }
-
-  return (
-    <div className="game-room">
-      <div className="game-info">
-        <h2>Game Room: {gameState.gameId}</h2>
-        <div className="scores">
-          {scores.map((player) => (
-            <div 
-              key={player.playerId} 
-              className={`score ${player.isCurrentPlayer ? 'current-player' : ''}`}
-            >
-              Player {player.playerId}: {player.score}
-              {player.isCurrentPlayer && ' (Current Turn)'}
+            <div>
+                <p>Your name: {playerName}</p>
+                <p>Status: Connected 🟢</p>
             </div>
-          ))}
-        </div>
-      </div>
-
-      <Board 
-        board={gameState.board || []} 
-        playedTiles={playedTiles}
-        onCellClick={handleBoardClick}
-      />
-
-      <Rack 
-        tiles={currentPlayerTiles}
-        selectedTile={selectedTile}
-        onTileSelect={handleTileSelect}
-      />
-
-      <GameControls 
-        onPlay={handlePlayMove}
-        onPass={handlePass}
-        isCurrentPlayer={gameState.currentPlayer === playerState?.playerId}
-      />
-    </div>
-  );
+        </Container>
+    );
 };
 
 export default GameRoom;
