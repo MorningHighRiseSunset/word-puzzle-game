@@ -1,16 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const gameController = require('../controllers/gameController');
-const auth = require('../middleware/auth');
 
-// All routes require authentication
-router.use(auth);
-
-// Game management
+// Public routes - no authentication required
+router.post('/lobby/join', gameController.joinLobby);
 router.post('/create', gameController.createGame);
-router.post('/join/:gameId', gameController.joinGame);
-router.post('/save/:gameId', gameController.saveGameState);
-router.get('/load/:gameId', gameController.loadGameState);
-router.post('/validate', gameController.validateMove);
+router.post('/join', gameController.joinGame);
+router.get('/games', gameController.getGames);
+router.post('/move', gameController.makeMove);
 
 module.exports = router;

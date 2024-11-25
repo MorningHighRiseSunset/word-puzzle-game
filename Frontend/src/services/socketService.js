@@ -4,13 +4,20 @@ class SocketService {
     constructor() {
         this.socket = null;
         this.gameId = null;
+        this.API_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:3001';
     }
 
     connect() {
-        this.socket = io(process.env.REACT_APP_BACKEND_URL || 'http://localhost:3001');
+        this.socket = io(this.API_URL, {
+            transports: ['websocket'],
+            reconnection: true,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
+            reconnectionAttempts: 5
+        });
         
         this.socket.on('connect', () => {
-            console.log('Connected to server');
+            console.log('Connected to game server');
         });
 
         this.socket.on('error', (error) => {
