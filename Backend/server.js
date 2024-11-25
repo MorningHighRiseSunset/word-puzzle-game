@@ -4,38 +4,36 @@ const cors = require('cors');
 const http = require('http');
 require('dotenv').config();
 
-const authRoutes = require('./routes/authRoutes');
 const gameRoutes = require('./routes/gameRoutes');
-const Dictionary = require('./utils/dictionary');
 const SocketManager = require('./utils/socketManager');
 
 const app = express();
 const server = http.createServer(app);
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    methods: ["GET", "POST"],
+    credentials: true
+}));
 app.use(express.json());
 
-// Initialize Dictionary
-Dictionary.initialize().catch(console.error);
-
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/game', gameRoutes);
-
-// Initialize Socket.IO
-const socketManager = new SocketManager(server);
-
 // Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/wordpuzzle')
+mongoose.connect(process.env.MONGODB_URI)
     .then(() => console.log('Connected to MongoDB'))
     .catch(err => console.error('MongoDB connection error:', err));
 
-// Error handling
+// Routes
+app.use('/api/game', gameRoutes);
+
+// Basic error handling
 app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({ error: 'Something broke!' });
 });
+
+// Initialize socket.io
+const socketManager = new SocketManager(server);
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
