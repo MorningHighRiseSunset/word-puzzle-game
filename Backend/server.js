@@ -4,7 +4,6 @@ const cors = require('cors');
 const http = require('http');
 require('dotenv').config();
 
-const gameRoutes = require('./routes/gameRoutes');
 const SocketManager = require('./utils/socketManager');
 
 const app = express();
@@ -18,18 +17,9 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI)
-    .then(() => console.log('Connected to MongoDB'))
-    .catch(err => console.error('MongoDB connection error:', err));
-
-// Routes
-app.use('/api/game', gameRoutes);
-
-// Basic error handling
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({ error: 'Something broke!' });
+// Basic route to test server
+app.get('/', (req, res) => {
+    res.json({ message: 'Server is running' });
 });
 
 // Initialize socket.io
