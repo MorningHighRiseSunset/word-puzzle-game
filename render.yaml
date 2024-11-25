@@ -1,0 +1,28 @@
+services:
+  # Backend API service
+  - type: web
+    name: word-puzzle-backend
+    env: node
+    buildCommand: cd Backend && npm install
+    startCommand: cd Backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        sync: false
+
+  # Frontend static site
+  - type: web
+    name: word-puzzle-frontend
+    env: static
+    buildCommand: cd Frontend && npm install && npm run build
+    staticPublishPath: Frontend/build
+    envVars:
+      - key: REACT_APP_BACKEND_URL
+        sync: false
