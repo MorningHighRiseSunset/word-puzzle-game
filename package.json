@@ -1,0 +1,10 @@
+{
+  "name": "word-puzzle-game",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "install-all": "cd Frontend && npm install && cd ../Backend && npm install",
+    "build": "cd Frontend && npm run build",
+    "start": "cd Backend && npm start"
+  }
+}
