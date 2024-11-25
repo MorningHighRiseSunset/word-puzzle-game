@@ -1,23 +1,21 @@
 import React from 'react';
-import styled from 'styled-components';
-import { usePlayer } from './context/PlayerContext';
-import JoinGame from './components/Lobby/JoinGame';
+import { GameProvider } from './context/GameContext';
+import { PlayerProvider } from './context/PlayerContext';
 import GameRoom from './components/Game/GameRoom';
+import ErrorBoundary from './components/ErrorBoundary';
 
-const AppContainer = styled.div`
-    min-height: 100vh;
-    background: #f5f5f5;
-    padding: 20px;
-`;
+const AppComponent = () => {
+  return (
+    <ErrorBoundary>
+      <GameProvider>
+        <PlayerProvider>
+          <div className="app">
+            <GameRoom />
+          </div>
+        </PlayerProvider>
+      </GameProvider>
+    </ErrorBoundary>
+  );
+};
 
-function App() {
-    const { inGame } = usePlayer();
-
-    return (
-        <AppContainer>
-            {inGame ? <GameRoom /> : <JoinGame />}
-        </AppContainer>
-    );
-}
-
-export default App;
+export default AppComponent;

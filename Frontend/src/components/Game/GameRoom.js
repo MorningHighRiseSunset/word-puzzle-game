@@ -1,6 +1,6 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useGame } from '../../context/GameContext';
-import { PlayerContext } from '../../context/PlayerContext';
+import { usePlayer } from '../../context/PlayerContext';
 import Board from '../Board';
 import Rack from '../Rack';
 import GameControls from '../GameControls';
@@ -8,7 +8,7 @@ import useSocket from '../../hooks/useSocket';
 
 const GameRoom = () => {
   const { gameState, updateGameState } = useGame();
-  const { playerState } = useContext(PlayerContext);
+  const { playerState } = usePlayer();
   const socket = useSocket();
   const [selectedTile, setSelectedTile] = useState(null);
   const [playedTiles, setPlayedTiles] = useState([]);
