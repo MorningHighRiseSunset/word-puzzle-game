@@ -1,4 +1,5 @@
 const socketIO = require('socket.io');
+const { createLetterBag } = require('./letterDistribution');
 
 class SocketManager {
     constructor(server) {
@@ -11,6 +12,7 @@ class SocketManager {
         });
         
         this.gameRooms = new Map();
+        this.playerSockets = new Map();
         this.initialize();
     }
 
@@ -20,47 +22,87 @@ class SocketManager {
 
             socket.on('createGame', ({ playerName }) => {
                 const gameId = Math.random().toString(36).substring(7);
-                this.gameRooms.set(gameId, {
-                    players: [{ id: socket.id, name: playerName }],
+                const letterBag = createLetterBag();
+                const initialRack = this.drawTiles(letterBag, 7);
+
+                const gameState = {
+                    id: gameId,
+                    players: [{
+                        id: socket.id,
+                        name: playerName,
+                        rack: initialRack,
+                        score: 0
+                    }],
                     board: Array(15).fill().map(() => Array(15).fill(null)),
-                    currentTurn: playerName,
-                    status: 'waiting'
-                });
+                    currentTurn: null,
+                    status: 'waiting',
+                    letterBag: letterBag,
+                    moves: []
+                };
+
+                this.gameRooms.set(gameId, gameState);
+                this.playerSockets.set(socket.id, gameId);
+                
                 socket.join(gameId);
-                socket.emit('gameUpdate', this.gameRooms.get(gameId));
+                socket.emit('gameCreated', { gameId, gameState });
                 this.broadcastGamesList();
             });
 
             socket.on('joinGame', ({ gameId, playerName }) => {
                 const game = this.gameRooms.get(gameId);
-                if (game && game.players.length < 4) {
-                    game.players.push({ id: socket.id, name: playerName });
+                if (game && game.status === 'waiting' && game.players.length < 4) {
+                    const initialRack = this.drawTiles(game.letterBag, 7);
+                    
+                    game.players.push({
+                        id: socket.id,
+                        name: playerName,
+                        rack: initialRack,
+                        score: 0
+                    });
+
+                    this.playerSockets.set(socket.id, gameId);
                     socket.join(gameId);
-                    this.io.to(gameId).emit('gameUpdate', game);
+
                     if (game.players.length === 2) {
                         game.status = 'active';
+                        game.currentTurn = game.players[0].id;
                     }
+
+                    this.io.to(gameId).emit('gameUpdate', game);
                     this.broadcastGamesList();
                 }
             });
 
-            socket.on('placeTile', ({ gameId, playerName, position, letter }) => {
+            socket.on('placeTile', ({ gameId, position, letter }) => {
                 const game = this.gameRooms.get(gameId);
-                if (game && game.currentTurn === playerName) {
-                    const { row, col } = position;
-                    if (!game.board[row][col]) {
-                        game.board[row][col] = letter;
-                        this.io.to(gameId).emit('gameUpdate', game);
+                if (game && game.status === 'active' && game.currentTurn === socket.id) {
+                    const player = game.players.find(p => p.id === socket.id);
+                    const letterIndex = player.rack.indexOf(letter);
+
+                    if (letterIndex !== -1) {
+                        const { row, col } = position;
+                        if (!game.board[row][col]) {
+                            // Place tile on board
+                            game.board[row][col] = letter;
+                            // Remove tile from player's rack
+                            player.rack.splice(letterIndex, 1);
+                            // Draw new tile
+                            const newTile = this.drawTiles(game.letterBag, 1)[0];
+                            if (newTile) player.rack.push(newTile);
+
+                            this.io.to(gameId).emit('gameUpdate', game);
+                        }
                     }
                 }
             });
 
-            socket.on('endTurn', ({ gameId, playerName }) => {
+            socket.on('endTurn', ({ gameId }) => {
                 const game = this.gameRooms.get(gameId);
-                if (game && game.currentTurn === playerName) {
-                    const currentPlayerIndex = game.players.findIndex(p => p.name === playerName);
+                if (game && game.status === 'active' && game.currentTurn === socket.id) {
+                    const currentPlayerIndex = game.players.findIndex(p => p.id === socket.id);
                     const nextPlayerIndex = (currentPlayerIndex + 1) % game.players.length;
-                    game.currentTurn = game.players[nextPlayerIndex].name;
+                    game.currentTurn = game.players[nextPlayerIndex].id;
+
                     this.io.to(gameId).emit('gameUpdate', game);
                 }
             });
@@ -70,10 +112,22 @@ class SocketManager {
             });
 
             socket.on('disconnect', () => {
-                console.log('Client disconnected:', socket.id);
-                this.handleDisconnect(socket.id);
+                const gameId = this.playerSockets.get(socket.id);
+                if (gameId) {
+                    this.handlePlayerDisconnect(socket.id, gameId);
+                }
+                this.playerSockets.delete(socket.id);
             });
         });
+    }
+
+    drawTiles(letterBag, count) {
+        const tiles = [];
+        for (let i = 0; i < count && letterBag.length > 0; i++) {
+            const randomIndex = Math.floor(Math.random() * letterBag.length);
+            tiles.push(letterBag.splice(randomIndex, 1)[0]);
+        }
+        return tiles;
     }
 
     broadcastGamesList() {
@@ -81,23 +135,29 @@ class SocketManager {
             .filter(([_, game]) => game.status === 'waiting')
             .map(([id, game]) => ({
                 id,
-                players: game.players.map(p => p.name)
+                hostName: game.players[0].name,
+                playerCount: game.players.length
             }));
         this.io.emit('gamesList', availableGames);
     }
 
-    handleDisconnect(socketId) {
-        for (const [gameId, game] of this.gameRooms.entries()) {
-            const playerIndex = game.players.findIndex(p => p.id === socketId);
+    handlePlayerDisconnect(playerId, gameId) {
+        const game = this.gameRooms.get(gameId);
+        if (game) {
+            const playerIndex = game.players.findIndex(p => p.id === playerId);
             if (playerIndex !== -1) {
                 game.players.splice(playerIndex, 1);
+                
                 if (game.players.length === 0) {
                     this.gameRooms.delete(gameId);
                 } else {
+                    if (game.currentTurn === playerId) {
+                        const nextPlayerIndex = playerIndex % game.players.length;
+                        game.currentTurn = game.players[nextPlayerIndex].id;
+                    }
                     this.io.to(gameId).emit('gameUpdate', game);
                 }
                 this.broadcastGamesList();
-                break;
             }
         }
     }
