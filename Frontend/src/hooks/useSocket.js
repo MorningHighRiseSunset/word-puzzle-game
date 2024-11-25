@@ -1,48 +1,34 @@
-import { useEffect, useCallback } from 'react';
-import socketService from '../services/socketService';
-import { useGame } from '../context/GameContext';
-import { useAuth } from '../context/AuthContext';
+import { useEffect, useRef } from 'react';
+import io from 'socket.io-client';
 
-export const useSocket = () => {
-    const { dispatch, ACTIONS } = useGame();
-    const { user } = useAuth();
+const SOCKET_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:3001';
 
-    const initializeSocket = useCallback(() => {
-        const socket = socketService.connect();
+const useSocket = () => {
+  const socketRef = useRef();
 
-        socket.on('playerJoined', ({ userId, gameState }) => {
-            dispatch({ type: ACTIONS.UPDATE_GAME_STATE, payload: gameState });
-        });
+  useEffect(() => {
+    // Create socket connection
+    socketRef.current = io(SOCKET_URL, {
+      transports: ['websocket'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000
+    });
 
-        socket.on('tilePlaced', ({ position, letter, board }) => {
-            dispatch({ type: ACTIONS.SET_BOARD, payload: board });
-        });
+    // Connection error handling
+    socketRef.current.on('connect_error', (error) => {
+      console.error('Socket connection error:', error);
+    });
 
-        socket.on('wordSubmitted', ({ word, score, userId, gameState }) => {
-            dispatch({ type: ACTIONS.UPDATE_GAME_STATE, payload: gameState });
-        });
+    // Cleanup on unmount
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+    };
+  }, []);
 
-        socket.on('turnEnded', ({ nextPlayer, gameState }) => {
-            dispatch({ type: ACTIONS.UPDATE_GAME_STATE, payload: gameState });
-        });
-
-        socket.on('playerLeft', (playerId) => {
-            dispatch({ 
-                type: ACTIONS.SET_ERROR, 
-                payload: 'A player has left the game' 
-            });
-        });
-
-        return socket;
-    }, [dispatch, ACTIONS]);
-
-    useEffect(() => {
-        const socket = initializeSocket();
-
-        return () => {
-            socketService.disconnect();
-        };
-    }, [initializeSocket]);
-
-    return socketService;
+  return socketRef.current;
 };
+
+export default useSocket;
