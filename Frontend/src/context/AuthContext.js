@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-// Create the context
 const AuthContext = createContext({
     user: null,
     loading: true,
@@ -10,7 +9,6 @@ const AuthContext = createContext({
     logout: () => {}
 });
 
-// Custom hook to use the auth context
 export const useAuth = () => {
     const context = useContext(AuthContext);
     if (!context) {
@@ -19,14 +17,14 @@ export const useAuth = () => {
     return context;
 };
 
-// Provider component
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
+    const API_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:3001';
+
     useEffect(() => {
-        // Check for stored token on mount
         const token = localStorage.getItem('token');
         if (token) {
             fetchUserData(token);
@@ -37,7 +35,7 @@ export const AuthProvider = ({ children }) => {
 
     const fetchUserData = async (token) => {
         try {
-            const response = await fetch('http://localhost:3001/api/auth/me', {
+            const response = await fetch(`${API_URL}/api/auth/me`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
@@ -55,9 +53,35 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    const register = async (username, password) => {
+        try {
+            const response = await fetch(`${API_URL}/api/auth/register`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username, password })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Registration failed');
+            }
+
+            localStorage.setItem('token', data.token);
+            setUser(data.user);
+            setError(null);
+            return data;
+        } catch (err) {
+            setError(err.message);
+            throw err;
+        }
+    };
+
     const login = async (username, password) => {
         try {
-            const response = await fetch('http://localhost:3001/api/auth/login', {
+            const response = await fetch(`${API_URL}/api/auth/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -81,48 +105,20 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    const register = async (username, email, password) => {
-        try {
-            const response = await fetch('http://localhost:3001/api/auth/register', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ username, email, password })
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || 'Registration failed');
-            }
-
-            localStorage.setItem('token', data.token);
-            setUser(data.user);
-            setError(null);
-            return data;
-        } catch (err) {
-            setError(err.message);
-            throw err;
-        }
-    };
-
     const logout = () => {
         localStorage.removeItem('token');
         setUser(null);
     };
 
-    const value = {
-        user,
-        loading,
-        error,
-        login,
-        register,
-        logout
-    };
-
     return (
-        <AuthContext.Provider value={value}>
+        <AuthContext.Provider value={{
+            user,
+            loading,
+            error,
+            login,
+            register,
+            logout
+        }}>
             {children}
         </AuthContext.Provider>
     );

@@ -43,7 +43,6 @@ const ErrorMessage = styled.div`
 
 const RegisterForm = () => {
     const [username, setUsername] = useState('');
-    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const { register } = useAuth();
@@ -51,7 +50,7 @@ const RegisterForm = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            await register(username, email, password);
+            await register(username, password);
             // Successful registration will update AuthContext
         } catch (err) {
             setError(err.message);
@@ -67,13 +66,6 @@ const RegisterForm = () => {
                     placeholder="Username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    required
-                />
-                <Input
-                    type="email"
-                    placeholder="Email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
                     required
                 />
                 <Input
